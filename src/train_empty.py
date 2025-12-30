@@ -36,7 +36,7 @@ class MinigridFeaturesExtractor(BaseFeaturesExtractor):
         return self.linear(self.cnn(observations))
 
 class GifRecorderCallback(BaseCallback):
-    def __init__(self, env_name, gif_path="artifacts/images/ppo_doorkey.gif", record_every=100_000, fps=30):
+    def __init__(self, env_name, gif_path="artifacts/images/ppo_empty.gif", record_every=100_000, fps=30):
         super().__init__()
         self.gif_path = gif_path
         self.record_every = record_every
@@ -64,7 +64,7 @@ class GifRecorderCallback(BaseCallback):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--env", default="MiniGrid-DoorKey-8x8-v0")
+    p.add_argument("--env", default="MiniGrid-Empty-8x8-v0")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--steps", type=int, default=2_000_000)
     p.add_argument("--record-every", type=int, default=100_000)
@@ -91,8 +91,8 @@ def main():
         learning_rate=3e-4,
         gamma=0.99,
     )
-    model.learn(total_timesteps=args.steps, tb_log_name="PPO_Sparse_Baseline", callback=GifRecorderCallback(env_name=args.env, record_every=args.record_every))
-    model.save("artifacts/models/ppo_doorkey_sparse")
+    model.learn(total_timesteps=args.steps, tb_log_name="PPO_Empty_Baseline", callback=GifRecorderCallback(env_name=args.env, record_every=args.record_every))
+    model.save("artifacts/models/ppo_empty")
 
 if __name__ == "__main__":
     main()
