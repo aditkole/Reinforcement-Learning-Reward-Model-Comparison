@@ -25,17 +25,42 @@ class DoorKeyRewardWrapper(gym.Wrapper):
         # Reward for picking up key
         if not self.has_key and self.env.unwrapped.carrying is not None:
             if self.env.unwrapped.carrying.type == "key":
+                # Increased reward for picking up key
                 reward += 0.5 
                 self.has_key = True
+        
+        # Reward for opening door
+        if not self.door_open and self.door_pos:
+            door_obj = self.env.unwrapped.grid.get(*self.door_pos)
+            if door_obj is not None and door_obj.is_open:
+                reward += 0.5
+                self.door_open = True
                 
-        # Small penalty for time
-        # reward -= 0.001 
+        # Small penalty for time 
+        reward -= 0.001 
         
         return obs, reward, terminated, truncated, info
 
     def reset(self, **kwargs):
         self.has_key = False
-        return self.env.reset(**kwargs)
+        self.door_open = False
+        self.door_pos = None
+        
+        obs, info = self.env.reset(**kwargs)
+        
+        # Find door position
+        try:
+            for i in range(self.env.unwrapped.width):
+                for j in range(self.env.unwrapped.height):
+                    obj = self.env.unwrapped.grid.get(i, j)
+                    if obj is not None and obj.type == 'door':
+                        self.door_pos = (i, j)
+                        break
+                if self.door_pos: break
+        except Exception:
+            pass
+            
+        return obs, info
 
 class MinigridFeaturesExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=256):
