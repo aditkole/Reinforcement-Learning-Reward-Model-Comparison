@@ -4,6 +4,7 @@ from minigrid.wrappers import ImgObsWrapper
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
 import torch
 import torch.nn as nn
 import imageio
@@ -13,6 +14,16 @@ def make_eval_env(env_name):
     env = ImgObsWrapper(env)
     env.reset()
     return env
+
+def make_env(env_name, rank, seed=0):
+    """Factory function to create a single environment for multiprocessing."""
+    def _init():
+        env = gym.make(env_name, render_mode="rgb_array")
+        env = DoorKeyRewardWrapper(env)
+        env = ImgObsWrapper(env)
+        env.reset(seed=seed + rank)
+        return env
+    return _init
 
 class DoorKeyRewardWrapper(gym.Wrapper):
     def __init__(self, env):
@@ -116,12 +127,12 @@ def main():
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--steps", type=int, default=2_000_000)
     p.add_argument("--record-every", type=int, default=100_000)
+    p.add_argument("--n-envs", type=int, default=4, help="Number of parallel environments (cores)")
     args = p.parse_args()
 
-    env = gym.make(args.env, render_mode="rgb_array")
-    env = DoorKeyRewardWrapper(env)
-    env = ImgObsWrapper(env)
-    env.reset()
+    # Create vectorized environment for multi-core training
+    env = SubprocVecEnv([make_env(args.env, i, args.seed) for i in range(args.n_envs)])
+    env = VecMonitor(env)  # Wrap with VecMonitor to track episode stats
 
     policy_kwargs = dict(
         features_extractor_class=MinigridFeaturesExtractor,
@@ -135,7 +146,7 @@ def main():
         seed=args.seed, 
         verbose=1, 
         tensorboard_log="./tb_logs/",
-        n_steps=1024,
+        n_steps=256,  # Per-env steps (total = n_steps * n_envs = 1024 with 4 envs)
         batch_size=64,
         learning_rate=3e-4,
         gamma=0.99,
